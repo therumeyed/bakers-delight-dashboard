@@ -1,4 +1,5 @@
 const { XMLParser } = require('fast-xml-parser');
+const { fetchWithTimeout } = require('../util/fetchWithTimeout');
 
 const parser = new XMLParser({ ignoreAttributes: false });
 
@@ -13,7 +14,7 @@ const parser = new XMLParser({ ignoreAttributes: false });
 async function search(query) {
   const url = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-AU&gl=AU&ceid=AU:en`;
   try {
-    const res = await fetch(url);
+    const res = await fetchWithTimeout(url);
     if (!res.ok) throw new Error(`Google News RSS returned ${res.status}`);
     const xml = await res.text();
     const parsed = parser.parse(xml);

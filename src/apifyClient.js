@@ -1,3 +1,5 @@
+const { fetchWithTimeout } = require('./util/fetchWithTimeout');
+
 const APIFY_API_BASE = 'https://api.apify.com/v2';
 
 const TERMINAL_STATUSES = ['SUCCEEDED', 'FAILED', 'TIMED-OUT', 'ABORTED'];
@@ -9,7 +11,7 @@ function actorPath(actorId) {
 
 async function startRun(actorId, input) {
   const token = process.env.APIFY_TOKEN;
-  const res = await fetch(`${APIFY_API_BASE}/acts/${actorPath(actorId)}/runs?token=${token}`, {
+  const res = await fetchWithTimeout(`${APIFY_API_BASE}/acts/${actorPath(actorId)}/runs?token=${token}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input)
@@ -24,7 +26,7 @@ async function waitForRun(runId, { pollMs = 5000, maxWaitMs = 10 * 60 * 1000 } =
   const token = process.env.APIFY_TOKEN;
   const deadline = Date.now() + maxWaitMs;
   while (Date.now() < deadline) {
-    const res = await fetch(`${APIFY_API_BASE}/actor-runs/${runId}?token=${token}`);
+    const res = await fetchWithTimeout(`${APIFY_API_BASE}/actor-runs/${runId}?token=${token}`);
     if (!res.ok) throw new Error(`Failed to poll Apify run ${runId}: ${res.status} ${await res.text()}`);
     const run = (await res.json()).data;
     if (TERMINAL_STATUSES.includes(run.status)) return run;
@@ -35,7 +37,7 @@ async function waitForRun(runId, { pollMs = 5000, maxWaitMs = 10 * 60 * 1000 } =
 
 async function getDatasetItems(datasetId) {
   const token = process.env.APIFY_TOKEN;
-  const res = await fetch(`${APIFY_API_BASE}/datasets/${datasetId}/items?token=${token}&format=json&clean=true`);
+  const res = await fetchWithTimeout(`${APIFY_API_BASE}/datasets/${datasetId}/items?token=${token}&format=json&clean=true`);
   if (!res.ok) throw new Error(`Failed to fetch Apify dataset ${datasetId}: ${res.status} ${await res.text()}`);
   return res.json();
 }

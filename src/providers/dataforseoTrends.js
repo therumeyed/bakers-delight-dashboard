@@ -2,6 +2,8 @@
 // bounded poll of task_get, per the brief's "never keep a web request open
 // while waiting" rule -- this runs from ingest.js (a script), never from an
 // Express request handler, so a bounded synchronous poll here is fine.
+const { fetchWithTimeout } = require('../util/fetchWithTimeout');
+
 const BASE = 'https://api.dataforseo.com/v3';
 const AUSTRALIA_LOCATION_CODE = 2036;
 
@@ -15,7 +17,7 @@ function authHeader() {
 }
 
 async function submitTask(keyword) {
-  const res = await fetch(`${BASE}/keywords_data/google_trends/explore/task_post`, {
+  const res = await fetchWithTimeout(`${BASE}/keywords_data/google_trends/explore/task_post`, {
     method: 'POST',
     headers: { Authorization: authHeader(), 'Content-Type': 'application/json' },
     // Single keyword per request -- item_types requiring one keyword
@@ -50,7 +52,7 @@ const TERMINAL_ERROR_CODES = new Set([40001, 40002, 40003, 40004, 40100, 40501, 
 async function pollTask(taskId, { pollMs = 4000, maxWaitMs = 120000 } = {}) {
   const deadline = Date.now() + maxWaitMs;
   while (Date.now() < deadline) {
-    const res = await fetch(`${BASE}/keywords_data/google_trends/explore/task_get/${taskId}`, {
+    const res = await fetchWithTimeout(`${BASE}/keywords_data/google_trends/explore/task_get/${taskId}`, {
       headers: { Authorization: authHeader() }
     });
     const json = await res.json();
