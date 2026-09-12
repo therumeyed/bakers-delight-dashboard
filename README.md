@@ -1,0 +1,151 @@
+# Bakers Delight Opportunity Radar
+
+A daily decision dashboard for Bakers Delight: what's worth acting on today,
+backed by real, sourced evidence -- never an invented metric or a fabricated
+example. Built from [this brief](.) (ask Nitin if you need the original doc).
+
+## What's live in this v1
+
+- **Search demand** -- DataForSEO Google Trends, one keyword at a time, Australia-wide with a state breakdown.
+- **Social trends** -- Reddit, TikTok and Instagram via Apify, each independently feature-flagged.
+- **Google News RSS** -- free, no API key, feeds evidence and rationale (no separate News panel; it's not a source_type with its own signal, just extra corroborating evidence).
+- **Today screen** -- top 3 evidence-backed recommendations, evidence drawer, History (by-date report browsing), filters (theme/audience/state) persisted in the URL.
+- **Source health** -- every provider run this report, its status and any error, in the nav.
+- **Deterministic scoring** -- freshness 25% / velocity 25% / cross-source agreement 20% / relevance 20% / seasonal fit 10%. No LLM touches the numbers; only the score components decide what gets shown, in what order, with what confidence.
+
+## What's deliberately not built yet
+
+Cut from v1 because they need a custom crawler/change-detection engine, not just a source connection -- see the brief for the full future scope:
+
+- **Digital availability** (own site crawl, store locator, ordering audit) -- `FEATURE_DIGITAL_AVAILABILITY`
+- **Competitor pulse** (competitor site/social monitoring) -- `FEATURE_COMPETITOR_PULSE`
+- **Local visibility** (DataForSEO Google Maps grid scanning) -- `FEATURE_LOCAL_VISIBILITY`
+- **Customer voice** -- undefined in the brief; stubbed behind `FEATURE_CUSTOMER_VOICE` pending a decision on what feeds it (Google reviews is the obvious candidate, and the account already has a working Apify actor for it on a sibling project)
+
+All four show as disabled nav items rather than pretending to work. Turning
+one on later means implementing its provider adapter and flipping the flag
+in `.env` / `render.yaml` -- the schema and UI already know about them.
+
+## The non-negotiable rule
+
+Every number on screen carries a `data_status` (`live`, `cached`, `imported`,
+`awaiting_connection`, `failed`) and traces back to a `source_items` row with
+the original URL, raw payload, and collection timestamp. A recommendation
+with zero real evidence is never created -- if fewer than 3 themes have
+actual collected evidence on a given day, fewer than 3 recommendations are
+shown. Nothing is padded to hit "exactly 3."
+
+## 1. Local setup
+
+```bash
+npm install
+cp .env.example .env   # fill in DATABASE_URL and whichever API keys you have
+npm start               # dashboard at http://localhost:3000
+npm run ingest           # one collection + report-build pass, manually
+npm test                 # unit tests (DB-backed suite auto-skips without TEST_DATABASE_URL)
+```
+
+Needs a local or hosted Postgres for `DATABASE_URL`. Tables are created
+automatically on first run.
+
+Every source works fine with no keys configured at all -- it just shows
+`awaiting_connection` on Source health and the rest of the report still
+builds from whatever *is* connected. Google News RSS needs nothing and
+always attempts a live pull.
+
+## 2. Getting each API key
+
+**DataForSEO** (dataforseo.com) -- sign up, your login is the account email,
+generate an API password from the dashboard → `DATAFORSEO_LOGIN` /
+`DATAFORSEO_PASSWORD`. Billed per task; `DATAFORSEO_DAILY_COST_CEILING_USD`
+(default $5) stops submitting new tasks once the day's spend hits it and
+falls back to the last successful (`cached`) pull for the remaining topics
+instead.
+
+**Apify** (apify.com) -- Settings → Integrations → API token → `APIFY_TOKEN`.
+One token covers all three actors below. Each source is independently
+switchable via `FEATURE_APIFY_REDDIT` / `FEATURE_APIFY_TIKTOK` /
+`FEATURE_APIFY_INSTAGRAM` (all default `true`) -- turn one off without
+touching code if it turns out unreliable or too expensive, same lesson the
+Melbourne Airport dashboard in this account already learned about TikTok/IG
+scraping being the flakiest links in any pipeline like this.
+
+Default actors (overridable, see `.env.example`):
+- Reddit: `trudax/reddit-scraper-lite`, scoped to `APIFY_REDDIT_SUBREDDITS` (comma-separated, no `r/`).
+- TikTok: `clockworks/tiktok-scraper`, searched against the active topic library's queries (or `APIFY_TIKTOK_SEARCH_TERMS` to override).
+- Instagram: `instaprism/instagram-hashtag-posts` -- hashtag search is the closest thing to free-text search Instagram allows, so this only catches posts tagged with a topic-derived hashtag, not every relevant post.
+
+**Worth knowing before turning these on**: these are community-maintained
+scrapers, not versioned platform APIs -- an actor can get renamed or change
+its output shape with no notice. If a source suddenly returns zero results,
+check the actor's Apify Store page first. Expect TikTok/Instagram in
+particular to have off days; that's the flakiest part of this whole pipeline
+and always will be.
+
+## 3. Topic library
+
+`src/topics.js` is the editable query library (brief section 11):
+lunchboxes, picnic & snacking, bread & rolls, entertaining, seasonal
+occasions -- each with a fixed set of queries. **Multicultural discovery**
+deliberately has none: it's meant to surface whatever related queries come
+up on their own, and anything from that theme is hard-locked to
+`early_signal` confidence and the `Investigate` action -- it can never
+auto-promote to a `Create` recommendation. That's enforced in
+`src/scoring.js` / `src/reportBuilder.js`, not just documented.
+
+## 4. Recommendation scoring
+
+`src/scoring.js` -- five weighted components (see weights above), each a
+plain 0-1 input:
+- **freshness** -- linear decay to 0 over 7 days from first detection.
+- **velocity** -- % change vs. a real 7-day trailing average queried from
+  the DB (DataForSEO's own rising-query value is preferred when present).
+  No prior history at all → neutral score, not a fabricated 0% or 100%.
+- **agreement** -- how many distinct source types corroborate it (1 source
+  is a hunch, 3+ is a pattern).
+- **relevance** / **seasonal fit** -- fixed editorial weighting per theme
+  (`src/reportBuilder.js`), not derived from any live metric.
+
+No LLM is wired into scoring or copy generation in this v1 -- titles and
+rationale are template strings built directly from the real counts and
+component scores. The brief allows an LLM to write the summary prose later;
+deliberately left out for now so there's one fewer place a number could get
+invented, and because the deterministic version is honestly good enough to
+ship.
+
+## 5. Deploy to Render
+
+`render.yaml` provisions a web service, a daily cron job (ingestion), and
+Postgres from one Blueprint -- same pattern as the sibling Melbourne Airport
+dashboard in this account. Push, then in Render: **New → Blueprint**, point
+it at this repo. Fill in the `bakers-delight-radar-secrets` group values.
+
+Cron fires at `20:00 UTC` (~6am Melbourne) -- Render cron is UTC-only, no DST
+awareness; shift by an hour at each daylight-saving change.
+
+## 6. Triggering a refresh manually
+
+The dashboard's **Refresh** button prompts for the admin token at click time
+(never stored, never shipped to the browser) and calls `POST /admin/refresh`,
+which spawns an ingestion run in the background and returns immediately --
+a full run (bounded Apify polling included) can take several minutes, far
+longer than an HTTP request should stay open. Reload the page after a bit to
+see the new report.
+
+```bash
+curl -X POST -H "Authorization: Bearer <ADMIN_TOKEN>" https://<your-service>.onrender.com/admin/refresh
+```
+
+On Render, `ADMIN_TOKEN` is auto-generated -- find it under the web
+service's Environment tab.
+
+## 7. Extending later
+
+- Wiring in Customer voice, Local visibility, Digital availability or
+  Competitor pulse: each is a new provider adapter under `src/providers/`
+  plus flipping its feature flag -- the schema (`source_items.source_type`,
+  `signals`, feature-flag plumbing in `server.js`) already expects them.
+- An LLM summarization pass could replace the template rationale strings in
+  `src/reportBuilder.js` -- keep it read-only over the already-computed
+  score components and evidence; it should never be allowed to invent a
+  metric, source, or URL, per the brief's non-negotiable rule.
