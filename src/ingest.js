@@ -56,6 +56,10 @@ async function collectTrends(report, reportDate) {
         spent += result.cost || 0;
       }
 
+      if (result.status !== 'live') {
+        console.warn(`[ingest] dataforseo_trends "${query}" (${topic.theme}): ${result.status}${result.error ? ` -- ${result.error}` : ''}`);
+      }
+
       const run = await recordProviderRun(report.id, {
         providerName: 'DataForSEO',
         sourceType: 'dataforseo_trends',
