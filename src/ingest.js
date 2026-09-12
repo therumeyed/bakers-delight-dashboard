@@ -195,6 +195,13 @@ async function run() {
   });
   const report = await getOrCreateReport(reportDate);
 
+  // A same-day re-run (Refresh fired more than once before midnight) should
+  // reflect only its own latest attempt on Source health, not accumulate
+  // every historical attempt from earlier runs today. Safe to clear: raw
+  // evidence in source_items just loses this FK (ON DELETE SET NULL) and is
+  // looked up by collected_at date in reportBuilder.js, not through this join.
+  await pool.query('DELETE FROM provider_runs WHERE report_id = $1', [report.id]);
+
   const providerSummary = {};
   providerSummary.dataforseo_trends = await collectTrends(report, reportDate);
   console.log('[ingest] trends done', providerSummary.dataforseo_trends);

@@ -41,12 +41,17 @@ function seasonalFit(theme, date = new Date()) {
   }
 }
 
-async function getTodayItems(reportId) {
+// Deliberately keyed on collected_at's calendar date (Melbourne), not on
+// joining through provider_runs -- a same-day re-run (manual Refresh fired
+// more than once before midnight) clears and re-records provider_runs (see
+// ingest.js), which would silently drop already-collected evidence from
+// this query if it depended on that join.
+async function getTodayItems(reportDate) {
   const res = await pool.query(
-    `SELECT si.* FROM source_items si
-     JOIN provider_runs pr ON pr.id = si.provider_run_id
-     WHERE pr.report_id = $1`,
-    [reportId]
+    `SELECT * FROM source_items
+     WHERE theme IS NOT NULL
+       AND (collected_at AT TIME ZONE 'Australia/Melbourne')::date = $1::date`,
+    [reportDate]
   );
   return res.rows;
 }
@@ -91,7 +96,16 @@ function extractSearchVelocity(searchItem) {
 // recommendation -- there is no "pad to exactly 3" step; if fewer than 3
 // themes have real evidence, fewer than 3 recommendations are saved.
 async function buildReport(reportId, reportDate) {
-  const items = await getTodayItems(reportId);
+  // A same-day re-run (a manual Refresh fired more than once before the
+  // calendar day rolls over) must replace this report's derived
+  // signals/recommendations, not pile more on top of them -- otherwise
+  // "exactly 3 priorities" silently becomes 6, 9, 12... across repeated
+  // runs. Raw evidence in source_items is untouched (it's deduped by
+  // content_hash anyway); only the derived rows get cleared and rebuilt.
+  await pool.query('DELETE FROM recommendations WHERE report_id = $1', [reportId]); // cascades recommendation_evidence
+  await pool.query('DELETE FROM signals WHERE report_id = $1', [reportId]);
+
+  const items = await getTodayItems(reportDate);
   const opportunities = [];
 
   for (const topic of ALL_TOPICS) {
