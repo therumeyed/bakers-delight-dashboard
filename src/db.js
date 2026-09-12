@@ -126,7 +126,13 @@ async function initSchema() {
   `);
 }
 
-async function initSchemaWithRetry(maxAttempts = 10, delayMs = 3000) {
+// On a fresh Render Blueprint deploy, the web service, cron job and Postgres
+// instance are all created together -- Postgres provisioning a brand-new
+// instance can take a couple of minutes, well past the DB's first
+// ECONNREFUSED. 30 attempts x 5s gives ~2.5 minutes of runway before this
+// gives up and exits (which Render then reports as a failed deploy rather
+// than just letting the container come up a little later).
+async function initSchemaWithRetry(maxAttempts = 30, delayMs = 5000) {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       await initSchema();
