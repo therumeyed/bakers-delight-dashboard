@@ -33,7 +33,12 @@ async function submitTask(keyword) {
   const json = await res.json();
   const task = json?.tasks?.[0];
   if (!res.ok || !task || task.status_code >= 40000) {
-    throw new Error(`DataForSEO task_post failed for "${keyword}": ${task?.status_message || res.statusText}`);
+    // DataForSEO can charge for a task_post that itself reports an error --
+    // attach whatever cost it named so the caller's daily ceiling tracking
+    // still sees the real spend instead of silently under-counting it.
+    const err = new Error(`DataForSEO task_post failed for "${keyword}": ${task?.status_message || res.statusText}`);
+    err.cost = task?.cost || 0;
+    throw err;
   }
   return { taskId: task.id, cost: task.cost || 0 };
 }
@@ -59,7 +64,9 @@ async function pollTask(taskId, { pollMs = 4000, maxWaitMs = 120000 } = {}) {
     const task = json?.tasks?.[0];
     if (task && task.status_code === 20000 && task.result) return task;
     if (task && TERMINAL_ERROR_CODES.has(task.status_code)) {
-      throw new Error(`DataForSEO task ${taskId} failed: ${task.status_message}`);
+      const err = new Error(`DataForSEO task ${taskId} failed: ${task.status_message}`);
+      err.cost = task.cost || 0;
+      throw err;
     }
     await new Promise((r) => setTimeout(r, pollMs));
   }
@@ -110,7 +117,7 @@ async function explore(keyword) {
     const task = await pollTask(taskId);
     return { status: 'live', cost: (task.cost || 0) + cost, taskId, data: parseResult(task), rawPayload: task };
   } catch (err) {
-    return { status: 'failed', cost: 0, error: err.message };
+    return { status: 'failed', cost: err.cost || 0, error: err.message };
   }
 }
 
