@@ -84,7 +84,11 @@ function parseResult(task) {
  */
 async function explore(keyword) {
   if (!isConfigured()) {
-    return { status: 'awaiting_connection', cost: 0 };
+    return {
+      status: 'awaiting_connection',
+      cost: 0,
+      error: `DATAFORSEO_LOGIN=${process.env.DATAFORSEO_LOGIN ? 'set' : 'MISSING'}, DATAFORSEO_PASSWORD=${process.env.DATAFORSEO_PASSWORD ? 'set' : 'MISSING'} in this process's environment -- account balance doesn't matter if the process never sees the credentials`
+    };
   }
   try {
     const { taskId, cost } = await submitTask(keyword);

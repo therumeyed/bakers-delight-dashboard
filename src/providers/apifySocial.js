@@ -11,14 +11,23 @@ function slugifyHashtag(query) {
   return query.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+// Distinguishes "deliberately turned off" from "never configured" instead of
+// a blank awaiting_connection row that leaves no way to tell which one it
+// is from Source health alone.
+function notConfiguredReason(featureFlagEnvVar) {
+  if (process.env[featureFlagEnvVar] === 'false') return `Disabled via ${featureFlagEnvVar}=false`;
+  if (!process.env.APIFY_TOKEN) return `APIFY_TOKEN not set in this process's environment`;
+  return null;
+}
+
 // SocialProvider.search(topicQueries, sinceDate) for Reddit -- one actor run
 // scanning each configured subreddit's newest posts, then locally matched
 // against every active topic query (cheaper and more predictable than a
 // site-wide search on a pay-per-result actor -- same approach proven on the
 // Melbourne Airport dashboard in this account).
 async function searchReddit(topicQueries, sinceDate) {
-  if (process.env.FEATURE_APIFY_REDDIT === 'false') return { status: 'awaiting_connection', items: [] };
-  if (!process.env.APIFY_TOKEN) return { status: 'awaiting_connection', items: [] };
+  const reason = notConfiguredReason('FEATURE_APIFY_REDDIT');
+  if (reason) return { status: 'awaiting_connection', items: [], error: reason };
 
   const actorId = process.env.APIFY_REDDIT_ACTOR_ID || 'trudax/reddit-scraper-lite';
   try {
@@ -60,8 +69,8 @@ async function searchReddit(topicQueries, sinceDate) {
 // TikTok via a search-based actor. One run covering every active topic query
 // keeps this to a single billed run/day instead of one per query.
 async function searchTikTok(topicQueries, sinceDate) {
-  if (process.env.FEATURE_APIFY_TIKTOK === 'false') return { status: 'awaiting_connection', items: [] };
-  if (!process.env.APIFY_TOKEN) return { status: 'awaiting_connection', items: [] };
+  const reason = notConfiguredReason('FEATURE_APIFY_TIKTOK');
+  if (reason) return { status: 'awaiting_connection', items: [], error: reason };
 
   const actorId = process.env.APIFY_TIKTOK_ACTOR_ID || 'clockworks/tiktok-scraper';
   const searchQueries = (process.env.APIFY_TIKTOK_SEARCH_TERMS
@@ -108,8 +117,8 @@ async function searchTikTok(topicQueries, sinceDate) {
 // real capability (same constraint documented on the Melbourne Airport
 // dashboard), so this only catches posts tagged with a topic-derived hashtag.
 async function searchInstagram(topicQueries, sinceDate) {
-  if (process.env.FEATURE_APIFY_INSTAGRAM === 'false') return { status: 'awaiting_connection', items: [] };
-  if (!process.env.APIFY_TOKEN) return { status: 'awaiting_connection', items: [] };
+  const reason = notConfiguredReason('FEATURE_APIFY_INSTAGRAM');
+  if (reason) return { status: 'awaiting_connection', items: [], error: reason };
 
   const actorId = process.env.APIFY_INSTAGRAM_ACTOR_ID || 'instaprism/instagram-hashtag-posts';
   const hashtags = (process.env.APIFY_INSTAGRAM_HASHTAGS

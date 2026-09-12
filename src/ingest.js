@@ -185,6 +185,14 @@ async function run() {
   const sinceDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); // 7-day recency window for social/news
 
   console.log(`[ingest] starting report ${reportDate}`);
+  // Booleans only, never the values -- but seeing this line in Render's log
+  // viewer immediately answers "did this process actually get the secrets"
+  // without needing to load the dashboard and dig through Source health.
+  console.log('[ingest] credentials seen by this process:', {
+    DATAFORSEO_LOGIN: Boolean(process.env.DATAFORSEO_LOGIN),
+    DATAFORSEO_PASSWORD: Boolean(process.env.DATAFORSEO_PASSWORD),
+    APIFY_TOKEN: Boolean(process.env.APIFY_TOKEN)
+  });
   const report = await getOrCreateReport(reportDate);
 
   const providerSummary = {};
