@@ -36,6 +36,17 @@ async function submitTask(keyword) {
   return { taskId: task.id, cost: task.cost || 0 };
 }
 
+// DataForSEO's status_code isn't a clean "success vs error" split at 40000 --
+// codes like 40602 ("Task Handed.") mean "accepted, still processing," not
+// failure, and a task can pass through several such transitional codes
+// before actually finishing. Only bail out early on the handful of codes
+// that are genuinely terminal (bad credentials, no funds, malformed
+// request, or the task id itself doesn't exist); anything else just keeps
+// polling until the real result shows up or the time budget runs out --
+// timing out honestly beats a false "failed" on a task that just hadn't
+// finished yet.
+const TERMINAL_ERROR_CODES = new Set([40001, 40002, 40003, 40004, 40100, 40501, 40601]);
+
 async function pollTask(taskId, { pollMs = 4000, maxWaitMs = 120000 } = {}) {
   const deadline = Date.now() + maxWaitMs;
   while (Date.now() < deadline) {
@@ -44,8 +55,10 @@ async function pollTask(taskId, { pollMs = 4000, maxWaitMs = 120000 } = {}) {
     });
     const json = await res.json();
     const task = json?.tasks?.[0];
-    if (task && task.status_code === 20000) return task;
-    if (task && task.status_code >= 40000) throw new Error(`DataForSEO task ${taskId} failed: ${task.status_message}`);
+    if (task && task.status_code === 20000 && task.result) return task;
+    if (task && TERMINAL_ERROR_CODES.has(task.status_code)) {
+      throw new Error(`DataForSEO task ${taskId} failed: ${task.status_message}`);
+    }
     await new Promise((r) => setTimeout(r, pollMs));
   }
   throw new Error(`DataForSEO task ${taskId} did not finish within ${maxWaitMs}ms`);
