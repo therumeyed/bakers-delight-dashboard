@@ -43,16 +43,17 @@ async function submitTask(keyword) {
   return { taskId: task.id, cost: task.cost || 0 };
 }
 
-// Our own guess at which status_codes are non-terminal ("still processing,
-// keep polling") vs terminal has been wrong before -- DataForSEO's public
-// docs are the authority here, not our recall of their code table. So every
-// terminal error now logs its numeric status_code, not just the message
-// text, so a wrong guess is visible and fixable from the log alone instead
-// of needing another paid round-trip to find out.
-const TERMINAL_ERROR_CODES = new Set([40001, 40002, 40003, 40004, 40100, 40501, 40601]);
+// Confirmed against DataForSEO's own dashboard (their Errors tab): every
+// task was hitting 40601 "Task Handed." within ~1s of submission, on every
+// single keyword, consistently. That's the engine saying "not picked up
+// yet" -- not a real failure -- and we were asking before giving it any
+// time to start. Only these codes are genuinely terminal (bad credentials,
+// no funds, malformed request); 40601 is deliberately not one of them.
+const TERMINAL_ERROR_CODES = new Set([40001, 40002, 40003, 40004, 40100, 40501]);
 
-async function pollTask(taskId, { pollMs = 4000, maxWaitMs = 120000 } = {}) {
+async function pollTask(taskId, { pollMs = 4000, initialDelayMs = 5000, maxWaitMs = 120000 } = {}) {
   const deadline = Date.now() + maxWaitMs;
+  await new Promise((r) => setTimeout(r, initialDelayMs)); // give the engine a moment to actually start
   while (Date.now() < deadline) {
     const res = await fetchWithTimeout(`${BASE}/keywords_data/google_trends/explore/task_get/${taskId}`, {
       headers: { Authorization: authHeader() }
