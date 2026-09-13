@@ -29,13 +29,18 @@ function buildPrompt({ themeLabel, actionType, distinctSourceCount, risingQuerie
     ? socialExamples.map((s) => `- [${s.platform}] "${(s.excerpt || '').slice(0, 200)}" (matched query: "${s.queryOrTopic}")`).join('\n')
     : '(none)';
 
-  return `You are a sharp, commercially-minded content strategist for Bakers Delight, an Australian bakery chain. You are given REAL evidence already collected for one theme today, and Bakers Delight's REAL current product range. Write ONE tight paragraph (2-3 sentences, no more) explaining why this is worth acting on today.
+  return `You are a sharp, commercially-minded social media strategist for Bakers Delight, an Australian bakery chain. You are given REAL evidence already collected for one theme today, and Bakers Delight's REAL current product range. Write ONE tight paragraph (2-4 sentences, no more): first the "why" grounded in the real evidence, then ONE concrete, specific action to actually take.
+
+The concrete action must be ONE of these three types -- pick whichever the evidence actually supports, don't force one that doesn't fit:
+1. A specific social post/video idea using a named product from the list (e.g. what to show, what angle -- concrete enough that someone could film it tomorrow).
+2. A recipe or how-to content idea built around a named product (e.g. a real recognisable dish that product could be used for).
+3. Directly engaging with the specific matched social post/thread already given as evidence below (reply, comment, join the conversation) -- reference what that post is about, not a generic "engage on social" instruction. Don't invent a URL or quote text not given below; the real link is already shown separately in the dashboard.
 
 Hard rules -- breaking any of these makes your answer useless:
 - Use ONLY the evidence given below. Never invent a metric, count, query, or source that isn't listed.
 - Only mention a product from the list below. Never invent a product or suggest one that isn't listed.
-- Only claim a specific product connection (e.g. a rising query maps onto an existing product) if it's a genuine, recognisable match -- if nothing in the evidence maps cleanly onto a listed product, don't force one.
-- Be specific and commercial, not generic marketing filler. No "own the moment" cliches, no exclamation points.
+- Only claim a specific product connection (e.g. a rising query maps onto an existing product) if it's a genuine, recognisable match -- if nothing in the evidence maps cleanly onto a listed product, don't force one; fall back to whichever of the three action types the evidence actually supports.
+- Be specific and commercial, not generic marketing filler. No "own the moment" cliches, no exclamation points, no vague "leverage this opportunity" language.
 
 Theme: ${themeLabel}
 Action already decided (do not change or second-guess it): ${actionType}
@@ -73,7 +78,7 @@ async function writeRationale(opportunity) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 300,
+        max_tokens: 400,
         messages: [{ role: 'user', content: buildPrompt(opportunity) }]
       })
     });
@@ -83,7 +88,7 @@ async function writeRationale(opportunity) {
     const text = (data.content?.[0]?.text || '').trim();
     // A suspiciously long or empty response is more likely a malformed
     // answer than a real rationale -- fall back rather than show it.
-    if (!text || text.length > 800) return null;
+    if (!text || text.length > 1000) return null;
     return text;
   } catch (err) {
     console.warn(`[llmStrategist] falling back to deterministic rationale: ${err.message}`);

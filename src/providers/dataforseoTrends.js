@@ -87,7 +87,7 @@ async function pollTask(taskId, { pollMs = 4000, initialDelayMs = 5000, maxWaitM
 // in rawPayload rather than dropped, per the "never discard the original
 // item" rule; interestByRegion/relatedQueries just come back empty instead
 // of throwing so one odd response shape doesn't take down the whole run.
-function parseResult(task) {
+function parseResult(task, keyword) {
   const items = task?.result?.[0]?.items || [];
   const map = items.find((i) => i.type === 'google_trends_map');
   const queriesList = items.find((i) => i.type === 'google_trends_queries_list');
@@ -101,6 +101,16 @@ function parseResult(task) {
     top: (queriesList?.top_queries || queriesList?.top || []).map((q) => ({ query: q.query, value: q.value })),
     rising: (queriesList?.rising_queries || queriesList?.rising || []).map((q) => ({ query: q.query, value: q.value ?? q.formatted_value }))
   };
+
+  // Confirmed via DataForSEO's own dashboard that rising/top queries exist
+  // for these keywords -- if we come back empty, it's our parsing guessing
+  // wrong field names, not missing data. Log the actual shape once here
+  // instead of guessing again; this costs nothing extra since it only
+  // fires on an already-completed, already-paid-for response.
+  if (relatedQueries.top.length === 0 && relatedQueries.rising.length === 0) {
+    console.warn(`[dataforseo] "${keyword}": queriesList item ${queriesList ? 'found but parsed to 0 top/0 rising' : 'NOT FOUND'} -- item types present: [${items.map((i) => i.type).join(', ')}]${queriesList ? `, queriesList keys: [${Object.keys(queriesList).join(', ')}]` : ''}`);
+    if (queriesList) console.warn(`[dataforseo] "${keyword}": queriesList raw (first 1500 chars): ${JSON.stringify(queriesList).slice(0, 1500)}`);
+  }
 
   const interestOverTime = (graph?.data || graph?.items || [])
     .map((p) => ({ date: p.date_from || p.date, value: p.values?.[0] }))
@@ -124,7 +134,7 @@ async function explore(keyword) {
   try {
     const { taskId, cost } = await submitTask(keyword);
     const task = await pollTask(taskId);
-    return { status: 'live', cost: (task.cost || 0) + cost, taskId, data: parseResult(task), rawPayload: task };
+    return { status: 'live', cost: (task.cost || 0) + cost, taskId, data: parseResult(task, keyword), rawPayload: task };
   } catch (err) {
     return { status: 'failed', cost: err.cost || 0, error: err.message };
   }
