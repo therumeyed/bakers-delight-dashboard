@@ -177,7 +177,14 @@ async function collectSocial(report, reportDate, sinceDate) {
         });
       }
     }
-    summary[platform.key] = { status: result.status, items: result.items?.length || 0, error: result.error };
+    // Omit the error key entirely when there isn't one -- Render's log
+    // viewer flags any line containing the literal word "error" as red,
+    // even at value `undefined`, so a clean run was showing as failed.
+    summary[platform.key] = {
+      status: result.status,
+      items: result.items?.length || 0,
+      ...(result.error ? { error: result.error } : {})
+    };
   }
   return summary;
 }

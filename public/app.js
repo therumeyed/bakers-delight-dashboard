@@ -129,13 +129,36 @@
     el.querySelectorAll('[data-rec-id]').forEach((btn) => btn.addEventListener('click', () => openEvidence(btn.dataset.recId)));
   }
 
+  // DataForSEO normalizes each topic's regional interest against its own
+  // 0-100 scale -- one topic's 100 and another's 100 mean nothing in
+  // relation to each other. This renders exactly one topic's bars at a
+  // time (picked from the dropdown), never a flattened mix of several.
+  function renderSearchBars(signal) {
+    const bars = qs('#bd-search-bars');
+    const regions = signal?.metricSummary?.interestByRegion || [];
+    if (regions.length === 0) {
+      bars.innerHTML = '<div class="bd-empty">No regional breakdown returned for this topic.</div>';
+      return;
+    }
+    const max = Math.max(...regions.map((r) => r.value), 1);
+    bars.innerHTML = regions.slice(0, 8).map((r) => `
+      <div class="bd-bar-row">
+        <span>${escapeHtml(r.region)}</span>
+        <div class="bd-track"><div class="bd-fill" style="width:${Math.round((r.value / max) * 100)}%"></div></div>
+        <span>${r.value}</span>
+      </div>
+    `).join('');
+  }
+
   function renderSearchDemand(searchSignals) {
     const tag = qs('#bd-search-tag');
     const bars = qs('#bd-search-bars');
     const nuggets = qs('#bd-search-nuggets');
+    const select = qs('#bd-search-topic-select');
     if (searchSignals.length === 0) {
       tag.textContent = 'Awaiting connection';
       tag.className = 'bd-source-tag bad';
+      select.innerHTML = '';
       bars.innerHTML = '<div class="bd-empty">No search-demand data for the current filters. DataForSEO may not be connected yet -- check Source health.</div>';
       nuggets.innerHTML = '<div class="bd-empty">No data</div>';
       return;
@@ -143,19 +166,9 @@
     tag.textContent = `DataForSEO · ${statusLabel(searchSignals[0].dataStatus)}`;
     tag.className = `bd-source-tag ${statusTagClass(searchSignals[0].dataStatus)}`;
 
-    const regions = searchSignals.flatMap((s) => s.metricSummary?.interestByRegion || []);
-    if (regions.length === 0) {
-      bars.innerHTML = '<div class="bd-empty">No regional breakdown returned for this topic.</div>';
-    } else {
-      const max = Math.max(...regions.map((r) => r.value), 1);
-      bars.innerHTML = regions.slice(0, 8).map((r) => `
-        <div class="bd-bar-row">
-          <span>${escapeHtml(r.region)}</span>
-          <div class="bd-track"><div class="bd-fill" style="width:${Math.round((r.value / max) * 100)}%"></div></div>
-          <span>${r.value}</span>
-        </div>
-      `).join('');
-    }
+    select.innerHTML = searchSignals.map((s, i) => `<option value="${i}">${escapeHtml(s.topic)}</option>`).join('');
+    select.onchange = () => renderSearchBars(searchSignals[Number(select.value)]);
+    renderSearchBars(searchSignals[0]);
 
     const rising = searchSignals.flatMap((s) => (s.metricSummary?.risingQueries || []).map((q) => ({ ...q, topic: s.topic })));
     nuggets.innerHTML = rising.length === 0

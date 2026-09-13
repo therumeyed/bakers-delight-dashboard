@@ -76,9 +76,10 @@
           <div class="bd-grid">
             <section class="bd-panel">
               <div class="bd-panel-head">
-                <div><h3>Search demand by state</h3><p>Relative interest for the selected topic, last 30 days</p></div>
+                <div><h3>Search demand by state</h3><p>Relative interest for one topic at a time, last 30 days &mdash; scores from different topics are never comparable</p></div>
                 <span class="bd-source-tag" id="bd-search-tag">&mdash;</span>
               </div>
+              <select id="bd-search-topic-select" aria-label="Search demand topic" style="margin-bottom:11px;width:100%;color:var(--bd-ink);background:var(--bd-panel);border:1px solid var(--bd-line);border-radius:8px;padding:7px 9px;font-size:11px;"></select>
               <div class="bd-bars" id="bd-search-bars"><div class="bd-empty">Loading…</div></div>
             </section>
             <section class="bd-panel">
