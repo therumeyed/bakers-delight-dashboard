@@ -46,9 +46,13 @@ async function submitTask(keyword) {
 // Confirmed against DataForSEO's own dashboard (their Errors tab): every
 // task was hitting 40601 "Task Handed." within ~1s of submission, on every
 // single keyword, consistently. That's the engine saying "not picked up
-// yet" -- not a real failure -- and we were asking before giving it any
-// time to start. Only these codes are genuinely terminal (bad credentials,
-// no funds, malformed request); 40601 is deliberately not one of them.
+// yet" -- not a real failure. 40602 ("Task In Queue"-style codes in the
+// same family) means the same thing. Named explicitly here rather than
+// just "anything not in TERMINAL_ERROR_CODES" -- the 5s initial delay is
+// not a guarantee the task is ready by then; these codes can (and should)
+// keep recurring across multiple poll attempts before the real result
+// shows up, right up to the full maxWaitMs budget.
+const PENDING_STATUS_CODES = new Set([40601, 40602]);
 const TERMINAL_ERROR_CODES = new Set([40001, 40002, 40003, 40004, 40100, 40501]);
 
 async function pollTask(taskId, { pollMs = 4000, initialDelayMs = 5000, maxWaitMs = 120000 } = {}) {
@@ -65,6 +69,13 @@ async function pollTask(taskId, { pollMs = 4000, initialDelayMs = 5000, maxWaitM
       const err = new Error(`DataForSEO task ${taskId} failed: [${task.status_code}] ${task.status_message}`);
       err.cost = task.cost || 0;
       throw err;
+    }
+    // A known-pending code and an unrecognised one get identical treatment
+    // (keep polling) -- but flag the unrecognised case so a genuinely new
+    // code doesn't silently blend into "normal," the way 40601 did before
+    // we'd actually confirmed what it meant.
+    if (task && !PENDING_STATUS_CODES.has(task.status_code)) {
+      console.warn(`[dataforseo] task ${taskId}: unrecognised non-terminal status_code ${task.status_code} (${task.status_message}) -- treating as pending, worth checking`);
     }
     await new Promise((r) => setTimeout(r, pollMs));
   }
