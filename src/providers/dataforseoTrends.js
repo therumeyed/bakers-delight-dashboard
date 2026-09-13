@@ -36,22 +36,19 @@ async function submitTask(keyword) {
     // DataForSEO can charge for a task_post that itself reports an error --
     // attach whatever cost it named so the caller's daily ceiling tracking
     // still sees the real spend instead of silently under-counting it.
-    const err = new Error(`DataForSEO task_post failed for "${keyword}": ${task?.status_message || res.statusText}`);
+    const err = new Error(`DataForSEO task_post failed for "${keyword}": [${task?.status_code}] ${task?.status_message || res.statusText}`);
     err.cost = task?.cost || 0;
     throw err;
   }
   return { taskId: task.id, cost: task.cost || 0 };
 }
 
-// DataForSEO's status_code isn't a clean "success vs error" split at 40000 --
-// codes like 40602 ("Task Handed.") mean "accepted, still processing," not
-// failure, and a task can pass through several such transitional codes
-// before actually finishing. Only bail out early on the handful of codes
-// that are genuinely terminal (bad credentials, no funds, malformed
-// request, or the task id itself doesn't exist); anything else just keeps
-// polling until the real result shows up or the time budget runs out --
-// timing out honestly beats a false "failed" on a task that just hadn't
-// finished yet.
+// Our own guess at which status_codes are non-terminal ("still processing,
+// keep polling") vs terminal has been wrong before -- DataForSEO's public
+// docs are the authority here, not our recall of their code table. So every
+// terminal error now logs its numeric status_code, not just the message
+// text, so a wrong guess is visible and fixable from the log alone instead
+// of needing another paid round-trip to find out.
 const TERMINAL_ERROR_CODES = new Set([40001, 40002, 40003, 40004, 40100, 40501, 40601]);
 
 async function pollTask(taskId, { pollMs = 4000, maxWaitMs = 120000 } = {}) {
@@ -64,7 +61,7 @@ async function pollTask(taskId, { pollMs = 4000, maxWaitMs = 120000 } = {}) {
     const task = json?.tasks?.[0];
     if (task && task.status_code === 20000 && task.result) return task;
     if (task && TERMINAL_ERROR_CODES.has(task.status_code)) {
-      const err = new Error(`DataForSEO task ${taskId} failed: ${task.status_message}`);
+      const err = new Error(`DataForSEO task ${taskId} failed: [${task.status_code}] ${task.status_message}`);
       err.cost = task.cost || 0;
       throw err;
     }
