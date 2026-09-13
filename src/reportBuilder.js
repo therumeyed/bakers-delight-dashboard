@@ -1,6 +1,7 @@
 const { pool, insertSignal, insertRecommendation, linkEvidence } = require('./db');
 const { ALL_TOPICS } = require('./topics');
 const { scoreOpportunity, confidenceFor, actionTypeFor } = require('./scoring');
+const { writeRationale } = require('./llmStrategist');
 
 const THEME_LABELS = Object.fromEntries(ALL_TOPICS.map((t) => [t.theme, t.label]));
 const REQUIRES_REVIEW = new Set(ALL_TOPICS.filter((t) => t.requiresReview).map((t) => t.theme));
@@ -194,7 +195,17 @@ async function buildReport(reportId, reportDate) {
       actionType: actionTypeFor(score, forceEarlySignal),
       evidenceItems: allThemeItems.sort((a, b) => new Date(b.collected_at) - new Date(a.collected_at)),
       socialCounts: Object.fromEntries(Object.entries(socialItemsByPlatform).map(([k, v]) => [k, v.length])),
-      hasSearch: searchItems.length > 0
+      hasSearch: searchItems.length > 0,
+      // Carried through for the LLM strategist step below -- real evidence
+      // only, nothing derived or invented here.
+      risingQueries: searchItems[0]?.normalized_metrics?.relatedQueries?.rising || [],
+      topQueries: searchItems[0]?.normalized_metrics?.relatedQueries?.top || [],
+      interestByRegion: searchItems[0]?.normalized_metrics?.interestByRegion || [],
+      socialExamples: Object.values(socialItemsByPlatform).flat().slice(0, 5).map((i) => ({
+        platform: i.source_type.replace('apify_', ''),
+        excerpt: i.excerpt,
+        queryOrTopic: i.query_or_topic
+      }))
     });
   }
 
@@ -208,9 +219,26 @@ async function buildReport(reportId, reportDate) {
     const parts = [];
     if (opp.hasSearch) parts.push('rising search interest');
     if (socialTotal > 0) parts.push(`${socialTotal} matching social post${socialTotal === 1 ? '' : 's'}`);
-    const rationale = opp.actionType === 'Investigate' && opp.theme === 'multicultural'
+    const isMulticulturalDisclaimer = opp.actionType === 'Investigate' && opp.theme === 'multicultural';
+    const deterministicRationale = isMulticulturalDisclaimer
       ? `A related query surfaced without a hard-coded assumption -- human review is required before this is used for audience targeting.`
       : `${opp.distinctSourceCount} independent source${opp.distinctSourceCount === 1 ? '' : 's'} point to ${label.toLowerCase()} right now: ${parts.join(' and ') || 'early signal only'}.`;
+
+    // The compliance disclaimer above is fixed wording, not something to
+    // let an LLM improvise on. Everywhere else, let it write a sharper
+    // rationale from the same real evidence -- falling back to the
+    // deterministic sentence on any failure, missing key, or bad response.
+    const rationale = isMulticulturalDisclaimer
+      ? deterministicRationale
+      : (await writeRationale({
+          themeLabel: label,
+          actionType: opp.actionType,
+          distinctSourceCount: opp.distinctSourceCount,
+          risingQueries: opp.risingQueries,
+          topQueries: opp.topQueries,
+          interestByRegion: opp.interestByRegion,
+          socialExamples: opp.socialExamples
+        })) || deterministicRationale;
 
     const titleByAction = {
       Create: `Own the "${label}" moment`,

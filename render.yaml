@@ -25,6 +25,8 @@ envVarGroups:
         value: "false"
       - key: APIFY_REDDIT_SUBREDDITS
         value: fitness,MealPrepSunday,budgetfood,AskAnAustralian,australia
+      - key: ANTHROPIC_API_KEY
+        sync: false
       - key: ADMIN_TOKEN
         generateValue: true
 

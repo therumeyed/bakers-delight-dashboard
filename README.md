@@ -106,14 +106,32 @@ plain 0-1 input:
 - **relevance** / **seasonal fit** -- fixed editorial weighting per theme
   (`src/reportBuilder.js`), not derived from any live metric.
 
-No LLM is wired into scoring or copy generation in this v1 -- titles and
-rationale are template strings built directly from the real counts and
-component scores. The brief allows an LLM to write the summary prose later;
-deliberately left out for now so there's one fewer place a number could get
-invented, and because the deterministic version is honestly good enough to
-ship.
+Scoring itself has no LLM in it, and never will -- score, confidence and
+which 3 opportunities win stay 100% deterministic and auditable.
 
-## 5. Deploy to Render
+## 5. Recommendation rationale (LLM strategist, optional)
+
+`src/llmStrategist.js` writes the rationale sentence for each of the top 3
+recommendations, reading the same real evidence the score was computed
+from -- rising/top queries, regional interest, and a few matched social
+post excerpts -- plus Bakers Delight's real product range (`src/products.js`,
+confirmed against the site's own "All Products" collection, 24 SKUs). This
+is what lets it notice things the deterministic scorer structurally can't,
+like a rising "pav" query under a bread theme mapping onto the Dinner Roll
+-- the scorer only counts signals, it has no idea what pav *is*.
+
+Hard boundaries, enforced in code not just prompted for:
+- It never sees or touches score, confidence, action_type, or which themes
+  make the top 3 -- all of that is decided before this runs.
+- It's given a fixed, real product list and told never to suggest anything
+  outside it.
+- No `ANTHROPIC_API_KEY`, a failed call, or a suspicious response (empty,
+  or implausibly long) all fall back to the existing deterministic template
+  sentence -- this is a nice-to-have layer, never a dependency the report
+  needs to succeed. The multicultural-discovery compliance disclaimer is
+  fixed wording and is never handed to the LLM at all.
+
+## 6. Deploy to Render
 
 `render.yaml` provisions a web service, a daily cron job (ingestion), and
 Postgres from one Blueprint -- same pattern as the sibling Melbourne Airport
@@ -123,7 +141,7 @@ it at this repo. Fill in the `bakers-delight-radar-secrets` group values.
 Cron fires at `20:00 UTC` (~6am Melbourne) -- Render cron is UTC-only, no DST
 awareness; shift by an hour at each daylight-saving change.
 
-## 6. Triggering a refresh manually
+## 7. Triggering a refresh manually
 
 The dashboard's **Refresh** button prompts for the admin token at click time
 (never stored, never shipped to the browser) and calls `POST /admin/refresh`,
@@ -139,13 +157,11 @@ curl -X POST -H "Authorization: Bearer <ADMIN_TOKEN>" https://<your-service>.onr
 On Render, `ADMIN_TOKEN` is auto-generated -- find it under the web
 service's Environment tab.
 
-## 7. Extending later
+## 8. Extending later
 
 - Wiring in Customer voice, Local visibility, Digital availability or
   Competitor pulse: each is a new provider adapter under `src/providers/`
   plus flipping its feature flag -- the schema (`source_items.source_type`,
   `signals`, feature-flag plumbing in `server.js`) already expects them.
-- An LLM summarization pass could replace the template rationale strings in
-  `src/reportBuilder.js` -- keep it read-only over the already-computed
-  score components and evidence; it should never be allowed to invent a
-  metric, source, or URL, per the brief's non-negotiable rule.
+- If Bakers Delight's product range changes, update `src/products.js` --
+  it's a plain data file, not something scraped or inferred.
