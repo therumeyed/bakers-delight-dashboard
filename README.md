@@ -115,8 +115,10 @@ which 3 opportunities win stay 100% deterministic and auditable.
 recommendations, reading the same real evidence the score was computed
 from -- rising/top queries, regional interest, and a few matched social
 post excerpts -- plus Bakers Delight's real product range (`src/products.js`,
-confirmed against the site's own "All Products" collection, 24 SKUs). This
-is what lets it notice things the deterministic scorer structurally can't,
+174 products, confirmed by paging through every page of the site's own
+"All Products" collection until it ran out -- the first pass only grabbed
+page 1's 24 and wrongly assumed that was everything). This is what lets it
+notice things the deterministic scorer structurally can't,
 like a rising "pav" query under a bread theme mapping onto the Dinner Roll
 -- the scorer only counts signals, it has no idea what pav *is*.
 

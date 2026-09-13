@@ -17,7 +17,7 @@ const MODEL = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001';
 const { PRODUCTS } = require('./products');
 
 function buildPrompt({ themeLabel, actionType, distinctSourceCount, risingQueries, topQueries, interestByRegion, socialExamples }) {
-  const productList = PRODUCTS.map((p) => `- ${p.name} ($${p.price.toFixed(2)})`).join('\n');
+  const productList = PRODUCTS.map((p) => `- ${p.name}${typeof p.price === 'number' ? ` ($${p.price.toFixed(2)})` : ''}`).join('\n');
   const risingList = risingQueries.length > 0
     ? risingQueries.map((q) => `- "${q.query}"${q.value != null ? ` (${q.value})` : ''}`).join('\n')
     : '(none returned)';
