@@ -1,19 +1,23 @@
 // Editable topic library (brief section 11). Each entry drives one
 // DataForSEO Trends request and one round of social search per platform.
 // `theme` values double as the Theme filter options in the UI.
-// A short, single-word "discovery" term is included alongside the longer,
-// specific phrases for each theme -- Google Trends' related-queries feature
-// is sensitive to phrase length/specificity, and DataForSEO's own dashboard
-// demoed rich rising-query results for the broad word "lunchbox" while our
-// existing "lunchbox ideas" phrase may simply be too narrow to have much
-// related-query data at all. Kept in the same list as the other queries
-// deliberately -- no separate config shape, just another editable entry.
+//
+// Biased toward short, broad terms rather than long specific phrases --
+// Google Trends' related-queries feature is sensitive to phrase
+// length/specificity, and a 3-4 word compound phrase ("after school
+// snacks", "christmas catering") is much more likely to have thin or empty
+// related-query data than the single word it's built from, independent of
+// any parsing bug. DataForSEO's own dashboard demoed rich rising-query
+// results for the broad word "lunchbox" specifically. Narrower phrases
+// were dropped rather than kept alongside the broad ones -- each is its
+// own billed DataForSEO task, so there's no reason to keep paying for ones
+// unlikely to return anything useful.
 const TOPICS = [
-  { theme: 'lunchboxes', label: 'Lunchboxes', queries: ['lunchbox', 'lunchbox ideas', 'school lunch ideas', 'kids lunch', 'after school snacks'] },
-  { theme: 'picnic_snacking', label: 'Picnic & snacking', queries: ['picnic', 'picnic snacks', 'easy picnic food', 'family picnic ideas'] },
-  { theme: 'bread_rolls', label: 'Bread & rolls', queries: ['bread', 'fresh bread', 'bread rolls', 'sourdough', 'bakery bread'] },
-  { theme: 'entertaining', label: 'Entertaining', queries: ['party', 'party food', 'bring a plate', 'easy entertaining', 'barbecue sides'] },
-  { theme: 'seasonal', label: 'Seasonal occasions', queries: ['school holidays', 'easter baking', 'mothers day', 'fathers day', 'christmas catering', 'summer gathering food'] }
+  { theme: 'lunchboxes', label: 'Lunchboxes', queries: ['lunchbox', 'school lunch', 'kids lunch'] },
+  { theme: 'picnic_snacking', label: 'Picnic & snacking', queries: ['picnic', 'picnic food'] },
+  { theme: 'bread_rolls', label: 'Bread & rolls', queries: ['bread', 'bread rolls', 'sourdough'] },
+  { theme: 'entertaining', label: 'Entertaining', queries: ['party food', 'barbecue', 'entertaining'] },
+  { theme: 'seasonal', label: 'Seasonal occasions', queries: ['school holidays', 'easter', 'mothers day', 'fathers day', 'christmas', 'summer'] }
 ];
 
 // Multicultural discovery is deliberately query-less at v1: the brief
