@@ -16,16 +16,11 @@
       <div class="bd-nav-label">Bakers Delight radar</div>
       <nav class="bd-nav" id="bd-nav">
         <button type="button" data-view="today" aria-pressed="true">Today</button>
-        <button type="button" data-view="source-health" aria-pressed="false">Source health</button>
         <button type="button" disabled>Local visibility <span class="bd-soon">Later</span></button>
         <button type="button" disabled>Digital availability <span class="bd-soon">Later</span></button>
         <button type="button" disabled>Competitor pulse <span class="bd-soon">Later</span></button>
         <button type="button" disabled>Customer voice <span class="bd-soon">Later</span></button>
       </nav>
-      <div class="bd-side-status" id="bd-side-status">
-        <strong><span class="bd-dot"></span>Loading…</strong>
-        <p>Checking source health.</p>
-      </div>
     </aside>
 
     <main class="bd-main">
@@ -97,12 +92,6 @@
               <div class="bd-signal-list" id="bd-social-list"><div class="bd-empty">Loading…</div></div>
             </section>
           </div>
-        </div>
-
-        <div id="bd-view-source-health" hidden>
-          <h2 style="font-family:Georgia,serif;">Source health</h2>
-          <p style="color:var(--bd-muted);font-size:13px;">Every provider that ran for the currently loaded report, and its last status.</p>
-          <div id="bd-source-health-list"></div>
         </div>
 
         <div id="bd-view-stub" hidden class="bd-stub">

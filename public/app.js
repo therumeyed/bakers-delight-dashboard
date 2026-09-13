@@ -105,8 +105,6 @@
     renderPriorities(bundle.recommendations);
     renderSearchDemand(bundle.signals.filter((s) => s.signalType === 'search_topic'));
     renderSocialSignals(bundle.signals.filter((s) => s.signalType === 'social_topic'));
-    renderSourceHealth(bundle.providerRuns);
-    renderSideStatus(bundle.providerRuns);
   }
 
   function renderPriorities(recommendations) {
@@ -198,36 +196,6 @@
     `).join('');
   }
 
-  function renderSourceHealth(providerRuns) {
-    const el = qs('#bd-source-health-list');
-    if (!providerRuns || providerRuns.length === 0) {
-      el.innerHTML = '<p style="color:var(--bd-muted);">No provider runs recorded for this report.</p>';
-      return;
-    }
-    el.innerHTML = providerRuns.map((p) => `
-      <div class="bd-mini" style="align-items:center;">
-        <span><strong>${escapeHtml(p.providerName)}</strong> &mdash; ${escapeHtml(p.sourceType)}</span>
-        <span>
-          <span class="bd-source-tag ${statusTagClass(p.status)}">${statusLabel(p.status)}</span>
-          ${p.error ? ` &mdash; ${escapeHtml(p.error)}` : ''}
-          ${p.cost ? ` &mdash; $${Number(p.cost).toFixed(2)}` : ''}
-        </span>
-      </div>
-    `).join('');
-  }
-
-  function renderSideStatus(providerRuns) {
-    const el = qs('#bd-side-status');
-    if (!providerRuns || providerRuns.length === 0) {
-      el.innerHTML = `<strong><span class="bd-dot warn"></span>No data yet</strong><p>No ingestion run recorded for this report.</p>`;
-      return;
-    }
-    const failed = providerRuns.filter((p) => p.status === 'failed');
-    const awaiting = providerRuns.filter((p) => p.status === 'awaiting_connection');
-    const dotClass = failed.length > 0 ? 'bad' : awaiting.length > 0 ? 'warn' : '';
-    const headline = failed.length > 0 ? `${failed.length} source${failed.length === 1 ? '' : 's'} failed` : awaiting.length > 0 ? `${awaiting.length} awaiting connection` : 'Sources healthy';
-    el.innerHTML = `<strong><span class="bd-dot ${dotClass}"></span>${escapeHtml(headline)}</strong><p>${providerRuns.length} provider run${providerRuns.length === 1 ? '' : 's'} this report. Open Source health for detail.</p>`;
-  }
 
   // --- Evidence drawer --------------------------------------------------
   function openEvidence(recId) {
@@ -323,7 +291,6 @@
       btn.setAttribute('aria-pressed', 'true');
       const view = btn.dataset.view;
       qs('#bd-view-today').hidden = view !== 'today';
-      qs('#bd-view-source-health').hidden = view !== 'source-health';
     }));
   }
 
