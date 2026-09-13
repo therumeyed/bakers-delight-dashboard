@@ -1,11 +1,18 @@
 // Editable topic library (brief section 11). Each entry drives one
 // DataForSEO Trends request and one round of social search per platform.
 // `theme` values double as the Theme filter options in the UI.
+// A short, single-word "discovery" term is included alongside the longer,
+// specific phrases for each theme -- Google Trends' related-queries feature
+// is sensitive to phrase length/specificity, and DataForSEO's own dashboard
+// demoed rich rising-query results for the broad word "lunchbox" while our
+// existing "lunchbox ideas" phrase may simply be too narrow to have much
+// related-query data at all. Kept in the same list as the other queries
+// deliberately -- no separate config shape, just another editable entry.
 const TOPICS = [
-  { theme: 'lunchboxes', label: 'Lunchboxes', queries: ['lunchbox ideas', 'school lunch ideas', 'kids lunch', 'after school snacks'] },
-  { theme: 'picnic_snacking', label: 'Picnic & snacking', queries: ['picnic snacks', 'easy picnic food', 'family picnic ideas'] },
-  { theme: 'bread_rolls', label: 'Bread & rolls', queries: ['fresh bread', 'bread rolls', 'sourdough', 'bakery bread'] },
-  { theme: 'entertaining', label: 'Entertaining', queries: ['party food', 'bring a plate', 'easy entertaining', 'barbecue sides'] },
+  { theme: 'lunchboxes', label: 'Lunchboxes', queries: ['lunchbox', 'lunchbox ideas', 'school lunch ideas', 'kids lunch', 'after school snacks'] },
+  { theme: 'picnic_snacking', label: 'Picnic & snacking', queries: ['picnic', 'picnic snacks', 'easy picnic food', 'family picnic ideas'] },
+  { theme: 'bread_rolls', label: 'Bread & rolls', queries: ['bread', 'fresh bread', 'bread rolls', 'sourdough', 'bakery bread'] },
+  { theme: 'entertaining', label: 'Entertaining', queries: ['party', 'party food', 'bring a plate', 'easy entertaining', 'barbecue sides'] },
   { theme: 'seasonal', label: 'Seasonal occasions', queries: ['school holidays', 'easter baking', 'mothers day', 'fathers day', 'christmas catering', 'summer gathering food'] }
 ];
 

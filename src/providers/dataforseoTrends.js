@@ -97,9 +97,15 @@ function parseResult(task, keyword) {
     .map((r) => ({ region: r.geo_name || r.region || r.location_name, value: r.value ?? r.values?.[0] }))
     .filter((r) => r.region && typeof r.value === 'number');
 
+  // Trying several plausible nestings -- including values under a `.data`
+  // object, per a specific hypothesis worth covering cheaply -- rather than
+  // asserting one guess is correct. The diagnostic log below is what
+  // actually confirms which one (if any) was right.
+  const topRaw = queriesList?.top_queries || queriesList?.top || queriesList?.data?.top || [];
+  const risingRaw = queriesList?.rising_queries || queriesList?.rising || queriesList?.data?.rising || [];
   const relatedQueries = {
-    top: (queriesList?.top_queries || queriesList?.top || []).map((q) => ({ query: q.query, value: q.value })),
-    rising: (queriesList?.rising_queries || queriesList?.rising || []).map((q) => ({ query: q.query, value: q.value ?? q.formatted_value }))
+    top: topRaw.map((q) => ({ query: q.query || q.keyword, value: q.value ?? q.formatted_value })),
+    rising: risingRaw.map((q) => ({ query: q.query || q.keyword, value: q.value ?? q.formatted_value }))
   };
 
   // Confirmed via DataForSEO's own dashboard that rising/top queries exist
