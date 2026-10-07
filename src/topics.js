@@ -38,4 +38,13 @@ function themeForQuery(query) {
   return hit ? hit.theme : null;
 }
 
-module.exports = { TOPICS, MULTICULTURAL_THEME, ALL_TOPICS, allQueries, themeForQuery };
+// Lets a topic flag ambiguous terms (none of this brand's queries need it
+// yet, but a sibling project hit "curry" colliding with Steph/Stephen Curry
+// on social search) -- apifySocial.js rejects a match whose text also hits
+// this list, rather than trust a bare substring match on its own.
+function excludeForQuery(query) {
+  const hit = ALL_TOPICS.find((t) => t.queries.includes(query));
+  return hit?.exclude || [];
+}
+
+module.exports = { TOPICS, MULTICULTURAL_THEME, ALL_TOPICS, allQueries, themeForQuery, excludeForQuery };
