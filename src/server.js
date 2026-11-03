@@ -60,8 +60,17 @@ const FEATURE_FLAGS = {
 const AUDIENCES = ['parents', 'families', 'school-age children', 'commuters', 'entertainers', 'multicultural audiences', 'general'];
 const STATES = ['National', 'VIC', 'NSW', 'QLD', 'SA', 'WA', 'TAS', 'ACT', 'NT'];
 
+// X-Admin-Token, not Authorization: Bearer -- the site-wide login wall
+// (requireSitePassword) already owns the Authorization header for the
+// whole app's Basic Auth. A browser that's already passed that gate
+// auto-attaches its Basic credentials to every request on this origin;
+// an explicit `Authorization: Bearer <token>` from the frontend would
+// silently REPLACE that Basic header instead of adding to it (HTTP allows
+// only one Authorization header per request), locking Refresh out behind
+// the site gate it had just passed. A dedicated header has no such
+// collision.
 function requireAdmin(req, res, next) {
-  const token = req.get('Authorization')?.replace(/^Bearer\s+/i, '');
+  const token = req.get('X-Admin-Token');
   if (!process.env.ADMIN_TOKEN || token !== process.env.ADMIN_TOKEN) {
     return res.status(403).json({ error: 'forbidden' });
   }

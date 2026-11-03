@@ -299,7 +299,7 @@
     qs('#bd-refresh-button').addEventListener('click', async () => {
       const token = window.prompt('Admin token to trigger a refresh:');
       if (!token) return;
-      const res = await fetch('/admin/refresh', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch('/admin/refresh', { method: 'POST', headers: { 'X-Admin-Token': token } });
       if (res.ok) {
         alert('Refresh started. This can take several minutes -- reload later to see the new report.');
       } else {
